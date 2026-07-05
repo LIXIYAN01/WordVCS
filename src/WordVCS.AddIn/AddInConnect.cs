@@ -206,11 +206,19 @@ namespace WordVCS.AddIn
 
         private void ShowControlPanel()
         {
-            if (_wpfControl == null)
+            // Ensure we have a document and initialized state
+            if (_wordApp?.ActiveDocument == null)
             {
-                if (_wordApp?.ActiveDocument == null) return;
-                InitializeForDocument(_wordApp.ActiveDocument);
+                System.Windows.MessageBox.Show("请先打开一个 .docx 论文文件。",
+                    "WordVCS", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
+
+            if (_wpfControl == null || _manager == null)
+                InitializeForDocument(_wordApp.ActiveDocument);
+
+            if (_hostControl == null || _hostControl.IsDisposed)
+                InitializeForDocument(_wordApp.ActiveDocument);
 
             if (_panelWindow == null)
             {
