@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
+using Newtonsoft.Json;
 using Word = Microsoft.Office.Interop.Word;
 using WordVCS.Core.Models;
 using WordVCS.Core.Services;
@@ -14,448 +14,298 @@ using WordVCS.UI.ViewModels;
 namespace WordVCS.AddIn
 {
     /// <summary>
-    /// 任务窗格管理器 — 连接 WPF UI 与 Core 服务层的桥梁。
-    /// 负责：数据加载、事件响应、Word COM 交互。
-    /// 这是一个独立于 VSTO 的纯 WPF 伴侣应用实现。
+    /// Bridge between WPF task pane UI and Core services.
+    /// Manages data loading, events, and Word COM interaction.
     /// </summary>
     public class TaskPaneManager
     {
-        private readonly WordVCSTaskPane _taskPane;
-        private readonly Word.Document _wordDoc;
-        private readonly Word.Application _wordApp;
-        private readonly IGitService _git;
-        private readonly ICommentExtractor _commentExtractor;
-        private readonly IDiffService _diff;
-        private readonly IMappingService _mapping;
-        private readonly IRepositoryManager _repoMgr;
-        private readonly WordCommentService _wordCommentSvc;
-        private readonly Window _ownerWindow;
+        private readonly WordVCSTaskPane _pane;
+        private readonly Word.Document _doc;
+        private readonly Word.Application _app;
+        private readonly IGitService _git = new GitService();
+        private readonly ICommentExtractor _ce = new CommentExtractor();
+        private readonly IDiffService _diff = new DiffService();
+        private readonly IMappingService _map = new MappingService();
+        private readonly IRepositoryManager _repo;
+        private readonly WordCommentService _wc;
 
-        private string _authorName = "Author";
-        private string _authorEmail = "author@example.com";
+        private string _an = "Author";
+        private string _ae = "author@example.com";
 
-        public TaskPaneManager(
-            WordVCSTaskPane taskPane,
-            Word.Document wordDoc,
-            Word.Application wordApp)
+        public TaskPaneManager(WordVCSTaskPane pane, Word.Document doc,
+            Word.Application app)
         {
-            _taskPane = taskPane;
-            _wordDoc = wordDoc;
-            _wordApp = wordApp;
-            _ownerWindow = Window.GetWindow(taskPane);
-
-            _git = new GitService();
-            _commentExtractor = new CommentExtractor();
-            _diff = new DiffService();
-            _mapping = new MappingService();
-            _repoMgr = new RepositoryManager(_git, _commentExtractor, _mapping);
-            _wordCommentSvc = new WordCommentService(_commentExtractor);
-
-            // Wire up ViewModel events
-            var vm = _taskPane.ViewModel;
-            if (vm != null)
-            {
-                vm.CommitRequested += OnCommitRequested;
-                vm.BranchCreateRequested += OnBranchCreateRequested;
-                vm.BranchSwitchRequested += OnBranchSwitchRequested;
-                vm.TagCreateRequested += OnTagCreateRequested;
-                vm.VersionRestoreRequested += OnVersionRestoreRequested;
-                vm.VersionDiffRequested += OnVersionDiffRequested;
-            }
+            _pane = pane; _doc = doc; _app = app;
+            _repo = new RepositoryManager(_git, _ce, _map);
+            _wc = new WordCommentService(_ce);
+            var vm = _pane.ViewModel;
+            vm.CommitRequested += OnCommit;
+            vm.BranchCreateRequested += OnBranchCreate;
+            vm.BranchSwitchRequested += OnBranchSwitch;
+            vm.TagCreateRequested += OnTagCreate;
+            vm.VersionRestoreRequested += OnRestore;
         }
 
-        public void Initialize()
-        {
-            LoadConfig();
-            Refresh();
-        }
+        public void Initialize() { LoadCfg(); Refresh(); }
 
         public void Refresh()
         {
-            var docPath = GetDocumentPath();
-            if (string.IsNullOrEmpty(docPath)) return;
-
-            _repoMgr.EnsureRepository(docPath, _authorName, _authorEmail, "draft")
-                .ContinueWith(_ =>
+            var dp = DocPath(); if (dp == null) return;
+            _repo.EnsureRepository(dp, _an, _ae, "draft").ContinueWith(_ =>
+            {
+                Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    Application.Current?.Dispatcher.Invoke(() =>
-                    {
-                        LoadVersionHistory(docPath);
-                        LoadComments(docPath);
-                        LoadBranches(docPath);
-                        UpdateStatus(docPath);
-                    });
+                    LoadHistory(dp); LoadComments(dp);
+                    LoadBranches(dp); UpdateStatus(dp);
                 });
+            });
         }
 
-        #region Tab Navigation
-
-        public void SwitchToTab(int index)
-        {
-            _taskPane.SwitchToTab(index);
-        }
+        public void SwitchToTab(int i) => _pane.SwitchToTab(i);
 
         public void ShowCommitDialog()
-        {
-            var dialog = new CommitDialog(_taskPane.ViewModel);
-            dialog.Owner = _ownerWindow;
-            dialog.ShowDialog();
-        }
+            => new CommitDialog(_pane.ViewModel)
+            { WindowStartupLocation = WindowStartupLocation.CenterScreen }
+            .ShowDialog();
 
         public void ShowBranchDialog()
-        {
-            var dialog = new BranchDialog(_taskPane.ViewModel);
-            dialog.Owner = _ownerWindow;
-            dialog.ShowDialog();
-        }
+            => new BranchDialog(_pane.ViewModel)
+            { WindowStartupLocation = WindowStartupLocation.CenterScreen }
+            .ShowDialog();
 
         public void ShowTagDialog()
         {
             string sha = null;
-            if (_taskPane.ViewModel.VersionHistory.Count > 0)
-                sha = _taskPane.ViewModel.VersionHistory[0].Sha;
-
-            var dialog = new TagDialog(_taskPane.ViewModel, sha);
-            dialog.Owner = _ownerWindow;
-            dialog.ShowDialog();
+            if (_pane.ViewModel.VersionHistory.Count > 0)
+                sha = _pane.ViewModel.VersionHistory[0].Sha;
+            new TagDialog(_pane.ViewModel, sha)
+            { WindowStartupLocation = WindowStartupLocation.CenterScreen }
+            .ShowDialog();
         }
 
         public void ShowFeedbackImportDialog()
         {
-            var dialog = new FeedbackImportDialog(_taskPane.ViewModel);
-            dialog.Owner = _ownerWindow;
-            if (dialog.ShowDialog() == true && dialog.Tag is string feedbackPath)
-            {
-                ProcessFeedbackImport(feedbackPath);
-            }
+            var dlg = new FeedbackImportDialog(_pane.ViewModel)
+            { WindowStartupLocation = WindowStartupLocation.CenterScreen };
+            if (dlg.ShowDialog() == true && dlg.Tag is string fp)
+                _ = ImportFeedback(fp);
         }
 
         public void ShowSettings()
         {
             MessageBox.Show(
-                "设置面板将在后续版本中实现。\n"
-                + "您可以在论文目录的 .wordvcs/config.json 中手动修改配置。\n\n"
-                + "当前作者: " + _authorName + " <" + _authorEmail + ">",
-                "WordVCS 设置",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "Settings: edit .wordvcs/config.json in your thesis folder.\n\n" +
+                "Author: " + _an + " <" + _ae + ">",
+                "WordVCS", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        #endregion
+        #region Events
 
-        #region Event Handlers
-
-        private async void OnCommitRequested(
-            string message, string detail, List<string> resolvedCommentIds)
+        private async void OnCommit(string msg, string detail,
+            List<string> resolvedIds)
         {
             try
             {
-                var docPath = GetDocumentPath();
-                if (string.IsNullOrEmpty(docPath)) return;
-
-                // Save document first
-                _wordDoc.Save();
-
-                var addressedComments = new List<CommentRecord>();
-                foreach (var c in _taskPane.ViewModel.GetCheckedComments())
-                {
-                    addressedComments.Add(new CommentRecord
+                var dp = DocPath(); if (dp == null) return;
+                _doc.Save();
+                var list = new List<CommentRecord>();
+                foreach (var c in _pane.ViewModel.GetCheckedComments())
+                    list.Add(new CommentRecord
                     {
-                        Id = c.Id,
-                        Author = c.Author,
-                        Content = c.Content,
-                        CreatedAt = c.CreatedAt,
-                        SelectedText = c.SelectedText,
+                        Id = c.Id, Author = c.Author, Content = c.Content,
+                        CreatedAt = c.CreatedAt, SelectedText = c.SelectedText,
                         Status = CommentStatus.Addressed
                     });
-                }
-
-                var sha = await _repoMgr.ExecuteCommit(
-                    docPath, message, _authorName, _authorEmail, addressedComments);
-
+                var sha = await _repo.ExecuteCommit(dp, msg, _an, _ae, list);
                 if (!string.IsNullOrEmpty(sha))
                 {
-                    MessageBox.Show(
-                        "提交成功！\n版本: " + sha.Substring(0, 7) + "\n"
-                        + "已处理 " + addressedComments.Count + " 条批注",
-                        "提交成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Commit OK!\nVersion: " +
+                        sha.Substring(0, 7) + "\nResolved: " + list.Count,
+                        "WordVCS", MessageBoxButton.OK, MessageBoxImage.Information);
                     Refresh();
                 }
                 else
-                {
-                    MessageBox.Show(
-                        "没有检测到文件变更，提交未执行。",
-                        "无需提交", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                    MessageBox.Show("No changes detected.", "WordVCS",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("提交失败: " + ex.Message, "错误",
+                MessageBox.Show("Commit failed: " + ex.Message, "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void OnBranchCreateRequested(string branchName)
+        private void OnBranchCreate(string name)
         {
-            var docPath = GetDocumentPath();
-            _git.CreateBranch(docPath, branchName).ContinueWith(t =>
+            var dp = DocPath();
+            _git.CreateBranch(dp, name).ContinueWith(_ =>
+                Application.Current?.Dispatcher.Invoke(() => Refresh()));
+        }
+
+        private void OnBranchSwitch(string name)
+        {
+            var dp = DocPath(); _doc.Save();
+            _git.SwitchBranch(dp, name).ContinueWith(_ =>
             {
-                Application.Current?.Dispatcher.Invoke(() => Refresh());
+                Application.Current?.Dispatcher.Invoke(() =>
+                { _doc.Close(); _app.Documents.Open(dp); Refresh(); });
             });
         }
 
-        private void OnBranchSwitchRequested(string branchName)
+        private void OnTagCreate(string name, string sha)
         {
-            var docPath = GetDocumentPath();
-            _wordDoc.Save();
-            _git.SwitchBranch(docPath, branchName).ContinueWith(t =>
+            _git.CreateTag(DocPath(), name, "Tag: " + name).ContinueWith(_ =>
             {
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    var docPathReload = GetDocumentPath();
-                    _wordDoc.Close();
-                    _wordApp.Documents.Open(docPathReload);
+                    MessageBox.Show("Tag '" + name + "' created.", "WordVCS",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
                     Refresh();
                 });
             });
         }
 
-        private void OnTagCreateRequested(string tagName, string commitSha)
+        private void OnRestore(string sha)
         {
-            var docPath = GetDocumentPath();
-            _git.CreateTag(docPath, tagName,
-                "WordVCS tag: " + tagName).ContinueWith(t =>
-                {
-                    Application.Current?.Dispatcher.Invoke(() =>
-                    {
-                        MessageBox.Show("标签 '" + tagName + "' 创建成功！",
-                            "标签已创建", MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-                        Refresh();
-                    });
-                });
-        }
-
-        private void OnVersionRestoreRequested(string commitSha)
-        {
-            var result = MessageBox.Show(
-                "确认要恢复版本 " + commitSha?.Substring(0, 7) + " 吗？\n"
-                + "当前修改将丢失。建议先保存当前版本。",
-                "确认恢复", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-
-            if (result == MessageBoxResult.Yes)
+            if (MessageBox.Show("Restore version " +
+                sha?.Substring(0, 7) + "?", "Confirm",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning)
+                != MessageBoxResult.Yes) return;
+            var dp = DocPath();
+            var tp = Path.GetTempFileName() + ".docx";
+            _git.RestoreVersion(dp, sha, tp).ContinueWith(t =>
             {
-                var docPath = GetDocumentPath();
-                var tempPath = Path.GetTempFileName() + ".docx";
-
-                _git.RestoreVersion(docPath, commitSha, tempPath)
-                    .ContinueWith(t =>
-                    {
-                        if (t.Result)
-                        {
-                            Application.Current?.Dispatcher.Invoke(() =>
-                            {
-                                _wordDoc.Close();
-                                File.Copy(tempPath, docPath, true);
-                                try { File.Delete(tempPath); } catch { }
-                                _wordApp.Documents.Open(docPath);
-                                Refresh();
-                            });
-                        }
-                    });
-            }
-        }
-
-        private void OnVersionDiffRequested(string oldSha, string newSha)
-        {
-            RefreshDiffView();
+                if (!t.Result) return;
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    _doc.Close(); File.Copy(tp, dp, true);
+                    try { File.Delete(tp); } catch { }
+                    _app.Documents.Open(dp); Refresh();
+                });
+            });
         }
 
         #endregion
 
-        #region Data Loading
+        #region Data
 
-        private void LoadVersionHistory(string docPath)
+        private void LoadHistory(string dp)
         {
-            var versions = new List<VersionEntryViewModel>();
+            var l = new List<VersionEntryViewModel>();
             try
             {
-                var history = _git.GetHistory(docPath, maxCount: 50);
-                foreach (var v in history)
+                foreach (var v in _git.GetHistory(dp, maxCount: 50))
                 {
                     var vm = new VersionEntryViewModel
                     {
-                        Sha = v.Sha,
-                        ShortMessage = v.ShortMessage,
-                        FullMessage = v.Message,
-                        Author = v.Author,
+                        Sha = v.Sha, ShortMessage = v.ShortMessage,
+                        FullMessage = v.Message, Author = v.Author,
                         AuthorDateString = v.CommittedAt.ToString("yyyy-MM-dd HH:mm"),
                         CommittedAt = v.CommittedAt,
+                        AddressedCommentCount =
+                            _map.GetCommentsByCommit(dp, v.Sha).Count
                     };
-
                     if (v.Tags != null)
-                        foreach (var tag in v.Tags)
-                            vm.Tags.Add(tag);
-
-                    var cmts = _mapping.GetCommentsByCommit(docPath, v.Sha);
-                    vm.AddressedCommentCount = cmts.Count;
-                    versions.Add(vm);
+                        foreach (var t in v.Tags) vm.Tags.Add(t);
+                    l.Add(vm);
                 }
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    "[WordVCS] LoadVersionHistory: " + ex.Message);
-            }
-
-            var vm2 = _taskPane.ViewModel;
-            vm2.VersionHistory.Clear();
-            foreach (var v in versions)
-                vm2.VersionHistory.Add(v);
+            catch { }
+            var pv = _pane.ViewModel;
+            pv.VersionHistory.Clear();
+            foreach (var v in l) pv.VersionHistory.Add(v);
         }
 
-        private void LoadComments(string docPath)
+        private void LoadComments(string dp)
         {
-            var comments = new List<CommentEntryViewModel>();
+            var l = new List<CommentEntryViewModel>();
             try
             {
-                List<CommentRecord> wordComments;
-                try
-                {
-                    wordComments = _wordCommentSvc.ExtractFromDocument(_wordDoc);
-                }
-                catch
-                {
-                    wordComments = _commentExtractor.ExtractFromFile(docPath);
-                }
-
-                var persisted = _mapping.GetPersistedComments(docPath);
-                var statusMap = persisted.ToDictionary(p => p.Id, p => p.Status);
-
-                foreach (var c in wordComments)
-                {
-                    var vm = new CommentEntryViewModel
+                List<CommentRecord> wc;
+                try { wc = _wc.ExtractFromDocument(_doc); }
+                catch { wc = _ce.ExtractFromFile(dp); }
+                var sm = _map.GetPersistedComments(dp)
+                    .ToDictionary(p => p.Id, p => p.Status);
+                foreach (var c in wc)
+                    l.Add(new CommentEntryViewModel
                     {
-                        Id = c.Id,
-                        Author = c.Author,
-                        Content = c.Content,
+                        Id = c.Id, Author = c.Author, Content = c.Content,
                         CreatedDateString = c.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
                         SelectedText = c.SelectedText,
-                        Status = statusMap.ContainsKey(c.Id)
-                            ? statusMap[c.Id].ToString() : "Pending",
-                        ResolvedInCommit = c.ResolvedInCommit,
+                        Status = sm.ContainsKey(c.Id) ? sm[c.Id].ToString() : "Pending",
                         CreatedAt = c.CreatedAt
-                    };
-                    comments.Add(vm);
-                }
+                    });
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    "[WordVCS] LoadComments: " + ex.Message);
-            }
-
-            var vm2 = _taskPane.ViewModel;
-            vm2.ActiveComments.Clear();
-            foreach (var c in comments)
-                vm2.ActiveComments.Add(c);
+            catch { }
+            var pv = _pane.ViewModel;
+            pv.ActiveComments.Clear();
+            foreach (var c in l) pv.ActiveComments.Add(c);
         }
 
-        private void LoadBranches(string docPath)
+        private void LoadBranches(string dp)
         {
-            var vm = _taskPane.ViewModel;
+            var vm = _pane.ViewModel;
             vm.Branches.Clear();
-
             try
             {
-                var branches = _git.ListBranches(docPath);
-                foreach (var b in branches)
-                {
+                foreach (var b in _git.ListBranches(dp))
                     vm.Branches.Add(new BranchEntryViewModel
                     {
-                        Name = b.Name,
-                        IsCurrent = b.IsCurrent,
+                        Name = b.Name, IsCurrent = b.IsCurrent,
                         HeadCommitSha = b.HeadCommitSha
                     });
-                }
             }
             catch { }
         }
 
-        private void UpdateStatus(string docPath)
+        private void UpdateStatus(string dp)
         {
-            var status = _repoMgr.GetStatus(docPath);
-            var vm = _taskPane.ViewModel;
-            vm.CurrentBranch = status.CurrentBranch;
-            vm.HeadCommit = status.HeadCommitSha;
-            vm.IsDirty = status.HasUncommittedChanges;
-            vm.UnresolvedCommentCount = status.UnresolvedCommentCount;
-            vm.TotalCommentCount = status.TotalCommentCount;
-        }
-
-        private void RefreshDiffView()
-        {
-            try
-            {
-                var docPath = GetDocumentPath();
-                var blocks = new List<DiffBlockViewModel>();
-                // Real diff will be computed when user selects versions
-                _taskPane.UpdateDiffBlocks(blocks);
-            }
-            catch { }
+            var s = _repo.GetStatus(dp);
+            var vm = _pane.ViewModel;
+            vm.CurrentBranch = s.CurrentBranch ?? "?";
+            vm.HeadCommit = s.HeadCommitSha ?? "";
+            vm.IsDirty = s.HasUncommittedChanges;
+            vm.UnresolvedCommentCount = s.UnresolvedCommentCount;
+            vm.TotalCommentCount = s.TotalCommentCount;
         }
 
         #endregion
 
-        #region Feedback Import
+        #region Feedback
 
-        private async void ProcessFeedbackImport(string feedbackPath)
+        private async System.Threading.Tasks.Task ImportFeedback(string fp)
         {
             try
             {
-                var docPath = GetDocumentPath();
-                var repoDir = Path.GetDirectoryName(docPath);
-                var feedbackName = Path.GetFileName(feedbackPath);
-                var destPath = Path.Combine(repoDir, feedbackName);
-                File.Copy(feedbackPath, destPath, true);
-
-                int round = 1;
-                var tags = _git.ListTags(docPath);
-                while (tags.Contains("feedback/r" + round + "-received")) round++;
-
-                var branchName = "feedback/round" + round;
-                await _git.CreateBranch(docPath, branchName);
-                await _repoMgr.ExecuteCommit(docPath,
-                    "[接收反馈] 第" + round + "轮导师批注",
-                    _authorName, _authorEmail, null);
-                await _git.CreateTag(docPath,
-                    "feedback/r" + round + "-received",
-                    "收到第" + round + "轮导师反馈");
-
-                var feedbackComments = _commentExtractor.ExtractFromFile(feedbackPath);
-
-                var history = _git.GetHistory(docPath, maxCount: 1);
-                var commitSha = history.Count > 0 ? history[0].Sha : "";
-                await _mapping.ImportComments(docPath, feedbackComments, commitSha);
-
-                await _git.SwitchBranch(docPath, "draft");
-
+                var dp = DocPath();
+                var dir = Path.GetDirectoryName(dp);
+                var dest = Path.Combine(dir, Path.GetFileName(fp));
+                File.Copy(fp, dest, true);
+                int r = 1;
+                var tags = _git.ListTags(dp);
+                while (tags.Contains("feedback/r" + r + "-received")) r++;
+                var bn = "feedback/round" + r;
+                await _git.CreateBranch(dp, bn);
+                await _repo.ExecuteCommit(dp,
+                    "[Import] Advisor feedback round " + r, _an, _ae, null);
+                await _git.CreateTag(dp, "feedback/r" + r + "-received",
+                    "Round " + r + " feedback");
+                var fbc = _ce.ExtractFromFile(fp);
+                var h = _git.GetHistory(dp, maxCount: 1);
+                await _map.ImportComments(dp, fbc,
+                    h.Count > 0 ? h[0].Sha : "");
+                await _git.SwitchBranch(dp, "draft");
                 Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    MessageBox.Show(
-                        "第" + round + "轮反馈导入成功！\n"
-                        + "已提取 " + feedbackComments.Count + " 条批注\n"
-                        + "分支: " + branchName + "\n"
-                        + "标签: feedback/r" + round + "-received\n\n"
-                        + "请切换到 draft 分支对照批注修改论文。",
-                        "导入成功", MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    MessageBox.Show("Round " + r + " imported!\n" +
+                        fbc.Count + " comments.\nBranch: " + bn,
+                        "WordVCS", MessageBoxButton.OK, MessageBoxImage.Information);
                     Refresh();
                 });
             }
             catch (Exception ex)
             {
-                MessageBox.Show("导入失败: " + ex.Message, "错误",
+                MessageBox.Show("Import failed: " + ex.Message, "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -464,31 +314,23 @@ namespace WordVCS.AddIn
 
         #region Helpers
 
-        private string GetDocumentPath()
-        {
-            try { return _wordDoc?.FullName; }
-            catch { return null; }
-        }
+        private string DocPath()
+        { try { return _doc?.FullName; } catch { return null; } }
 
-        private void LoadConfig()
+        private void LoadCfg()
         {
             try
             {
-                var docPath = GetDocumentPath();
-                if (string.IsNullOrEmpty(docPath)) return;
-
-                var configPath = Path.Combine(
-                    Path.GetDirectoryName(docPath), ".wordvcs", "config.json");
-                if (File.Exists(configPath))
+                var dp = DocPath(); if (dp == null) return;
+                var cp = Path.Combine(Path.GetDirectoryName(dp),
+                    ".wordvcs", "config.json");
+                if (File.Exists(cp))
                 {
-                    var json = File.ReadAllText(configPath);
-                    var config = Newtonsoft.Json.JsonConvert
-                        .DeserializeObject<RepositoryConfig>(json);
-                    if (config != null)
-                    {
-                        _authorName = config.AuthorName ?? "Author";
-                        _authorEmail = config.AuthorEmail ?? "author@example.com";
-                    }
+                    var cfg = JsonConvert.DeserializeObject<RepositoryConfig>(
+                        File.ReadAllText(cp));
+                    if (cfg != null)
+                    { _an = cfg.AuthorName ?? "Author";
+                      _ae = cfg.AuthorEmail ?? "author@example.com"; }
                 }
             }
             catch { }

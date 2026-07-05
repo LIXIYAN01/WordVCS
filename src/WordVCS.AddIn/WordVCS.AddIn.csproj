@@ -8,7 +8,6 @@
     <OutputType>Library</OutputType>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
-    <RegisterForComInterop>false</RegisterForComInterop>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
@@ -19,10 +18,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Office.Interop.Word" Version="15.0.4797.1004" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Office PIA (not in NuGet) -->
     <Reference Include="Office">
       <HintPath>C:\Program Files (x86)\Microsoft Visual Studio\Shared\Visual Studio Tools for Office\PIA\Office15\Office.dll</HintPath>
       <Private>True</Private>
@@ -39,12 +38,7 @@
     <Reference Include="System.Xaml" />
   </ItemGroup>
 
-  <!-- Auto-copy Office.dll, native DLLs, and clean junk -->
-  <Target Name="PostBuild" AfterTargets="Build">
-    <Copy SourceFiles="C:\Program Files (x86)\Microsoft Visual Studio\Shared\Visual Studio Tools for Office\PIA\Office15\Office.dll"
-          DestinationFolder="$(OutputPath)"
-          SkipUnchangedFiles="true"
-          Condition="!Exists('$(OutputPath)Office.dll')" />
+  <Target Name="PostBuildClean" AfterTargets="Build">
     <Copy SourceFiles="$(NuGetPackageRoot)libgit2sharp.nativebinaries\2.0.322\runtimes\win-x64\native\git2-a418d9d.dll"
           DestinationFolder="$(OutputPath)"
           SkipUnchangedFiles="true"

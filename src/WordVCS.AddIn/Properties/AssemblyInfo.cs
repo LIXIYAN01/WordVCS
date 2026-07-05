@@ -1,14 +1,11 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("WordVCS - 论文版本控制 VSTO 插件")]
-[assembly: AssemblyDescription("Word 文档版本控制系统")]
-[assembly: AssemblyCompany("WordVCS Open Source Project")]
+[assembly: AssemblyTitle("WordVCS")]
+[assembly: AssemblyDescription("Word Document Version Control Add-in")]
+[assembly: AssemblyCompany("WordVCS")]
 [assembly: AssemblyProduct("WordVCS")]
-[assembly: AssemblyCopyright("Copyright © 2026")]
-[assembly: AssemblyTrademark("")]
-[assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
-[assembly: Guid("C3D4E5F6-A7B8-9012-CDEF-123456789012")]
+[assembly: Guid("B4E1C2D3-A5F6-7890-ABCD-EF1234567890")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
