@@ -5,9 +5,11 @@
     <RootNamespace>WordVCS.AddIn</RootNamespace>
     <AssemblyName>WordVCS.AddIn</AssemblyName>
     <LangVersion>10.0</LangVersion>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Library</OutputType>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Office PIA (not in NuGet) -->
     <Reference Include="Office">
       <HintPath>C:\Program Files (x86)\Microsoft Visual Studio\Shared\Visual Studio Tools for Office\PIA\Office15\Office.dll</HintPath>
       <Private>True</Private>
@@ -36,11 +39,16 @@
     <Reference Include="System.Xaml" />
   </ItemGroup>
 
-  <Target Name="CopyOfficePIA" AfterTargets="Build">
+  <!-- Auto-copy Office.dll, native DLLs, and clean junk -->
+  <Target Name="PostBuild" AfterTargets="Build">
     <Copy SourceFiles="C:\Program Files (x86)\Microsoft Visual Studio\Shared\Visual Studio Tools for Office\PIA\Office15\Office.dll"
           DestinationFolder="$(OutputPath)"
           SkipUnchangedFiles="true"
           Condition="!Exists('$(OutputPath)Office.dll')" />
+    <Copy SourceFiles="$(NuGetPackageRoot)libgit2sharp.nativebinaries\2.0.322\runtimes\win-x64\native\git2-a418d9d.dll"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true"
+          Condition="!Exists('$(OutputPath)git2-a418d9d.dll')" />
     <Delete Files="$(OutputPath)System.Data.SQLite.EF6.dll;$(OutputPath)System.Data.SQLite.Linq.dll;$(OutputPath)EntityFramework.dll;$(OutputPath)EntityFramework.SqlServer.dll;$(OutputPath)*.pdb"
            Condition="Exists('$(OutputPath)System.Data.SQLite.dll')" />
   </Target>
