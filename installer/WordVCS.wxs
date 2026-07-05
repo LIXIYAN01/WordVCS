@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <?define ProductName="WordVCS" ?>
+  <?define Manufacturer="WordVCS Open Source Project" ?>
+  <?define UpgradeCode="E4A1B2C3-D5E6-7890-ABCD-EF1234567890" ?>
+
+  <Product Id="*"
+           Name="$(var.ProductName)"
+           Language="1033"
+           Version="1.0.0.0"
+           Manufacturer="$(var.Manufacturer)"
+           UpgradeCode="$(var.UpgradeCode)">
+
+    <Package InstallerVersion="200" Compressed="yes"
+             InstallScope="perMachine"
+             Description="Word 文档版本控制系统 VSTO 插件" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="WORDVCS_VSTO_INSTALLED" Value="1" />
+
+    <Feature Id="ProductFeature" Title="WordVCS" Level="1">
+      <ComponentGroupRef Id="VSTOComponents" />
+    </Feature>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="WordVCS">
+          <!-- Installation directory for VSTO deploy files -->
+        </Directory>
+      </Directory>
+      <!-- Registry for VSTO add-in registration -->
+      <Directory Id="AppDataFolder">
+        <!-- VSTO ClickOnce registration path -->
+      </Directory>
+    </Directory>
+
+    <ComponentGroup Id="VSTOComponents" Directory="INSTALLFOLDER">
+      <!-- These would be populated from the build output by a WiX pre-build step -->
+      <!-- See build.ps1 for the full packaging process -->
+    </ComponentGroup>
+  </Product>
+</Wix>

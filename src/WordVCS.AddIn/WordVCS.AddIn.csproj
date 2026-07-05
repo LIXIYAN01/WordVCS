@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>WordVCS.AddIn</RootNamespace>
+    <AssemblyName>WordVCS.AddIn</AssemblyName>
+    <LangVersion>10.0</LangVersion>
+    <OutputType>WinExe</OutputType>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WordVCS.Core\WordVCS.Core.csproj" />
+    <ProjectReference Include="..\WordVCS.UI\WordVCS.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Office.Interop.Word" Version="15.0.4797.1004" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Office">
+      <HintPath>C:\Program Files (x86)\Microsoft Visual Studio\Shared\Visual Studio Tools for Office\PIA\Office15\Office.dll</HintPath>
+      <Private>True</Private>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+  </ItemGroup>
+
+  <Target Name="CopyOfficePIA" AfterTargets="Build">
+    <Copy SourceFiles="C:\Program Files (x86)\Microsoft Visual Studio\Shared\Visual Studio Tools for Office\PIA\Office15\Office.dll"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true"
+          Condition="!Exists('$(OutputPath)Office.dll')" />
+    <Delete Files="$(OutputPath)System.Data.SQLite.EF6.dll;$(OutputPath)System.Data.SQLite.Linq.dll;$(OutputPath)EntityFramework.dll;$(OutputPath)EntityFramework.SqlServer.dll;$(OutputPath)*.pdb"
+           Condition="Exists('$(OutputPath)System.Data.SQLite.dll')" />
+  </Target>
+</Project>

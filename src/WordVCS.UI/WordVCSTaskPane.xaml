@@ -1,0 +1,97 @@
+<UserControl x:Class="WordVCS.UI.WordVCSTaskPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:WordVCS.UI"
+             xmlns:controls="clr-namespace:WordVCS.UI.Controls"
+             xmlns:converters="clr-namespace:WordVCS.UI.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="360"
+             Background="#F8F9FA">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <converters:RelativeTimeConverter x:Key="RelativeTime" />
+            <converters:CountToVisibilityConverter x:Key="CountToVisibility" />
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="White"
+                BorderThickness="0,0,0,1" BorderBrush="#E9ECEF"
+                Padding="15,12">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="WordVCS" FontSize="15" FontWeight="Bold"
+                               Foreground="#212529" VerticalAlignment="Center" />
+                    <Border CornerRadius="4" Background="#E8F0FE"
+                            Margin="10,0,0,0" Padding="6,2">
+                        <TextBlock Text="论文版本控制" FontSize="11"
+                                   Foreground="#1A73E8" FontWeight="SemiBold" />
+                    </Border>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <TextBlock Text="分支: " FontSize="11" Foreground="#6C757D" />
+                    <TextBlock Text="{Binding CurrentBranch}" FontSize="11"
+                               FontWeight="Bold" Foreground="#495057" />
+                    <TextBlock Text=" | " FontSize="11" Foreground="#6C757D" />
+                    <TextBlock Text="{Binding StatusText}" FontSize="11"
+                               Foreground="#DC3545" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Tab Control (3 tabs) -->
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0"
+                    SelectedIndex="{Binding SelectedTabIndex}"
+                    Margin="0,5,0,0">
+            <!-- Tab 1: Version History -->
+            <TabItem Header="📋 版本" Style="{StaticResource SidebarTabItem}">
+                <controls:VersionTimeline DataContext="{Binding}" />
+            </TabItem>
+
+            <!-- Tab 2: Comments -->
+            <TabItem Header="💬 批注" Style="{StaticResource SidebarTabItem}">
+                <controls:CommentPanel DataContext="{Binding}" />
+            </TabItem>
+
+            <!-- Tab 3: Diff Viewer -->
+            <TabItem Header="📊 差异" Style="{StaticResource SidebarTabItem}">
+                <controls:DiffViewer DataContext="{Binding}" />
+            </TabItem>
+        </TabControl>
+
+        <!-- Bottom Action Bar -->
+        <Border Grid.Row="2" Background="White"
+                BorderThickness="0,1,0,0" BorderBrush="#E9ECEF"
+                Padding="15,10">
+            <StackPanel>
+                <Button x:Name="BtnCommit" Style="{StaticResource ModernButton}"
+                        Content="💾 提交新版本" Click="OnCommitClick"
+                        Width="330" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                            Margin="0,8,0,0">
+                    <Button Content="🌿 分支" Style="{StaticResource SmallButton}"
+                            Click="OnBranchClick" Margin="0,0,5,0" />
+                    <Button Content="🔖 标签" Style="{StaticResource SmallButton}"
+                            Click="OnTagClick" Margin="0,0,5,0" />
+                    <Button Content="📥 导入反馈" Style="{StaticResource SmallButton}"
+                            Click="OnImportFeedbackClick" Margin="0,0,5,0" />
+                    <Button Content="⚙" Style="{StaticResource SmallButton}"
+                            Click="OnSettingsClick" Width="32" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,83 @@
+<Window x:Class="WordVCS.UI.Controls.FeedbackImportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="导入导师反馈" Width="450" Height="350"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F8F9FA">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Themes/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="📥 导入导师反馈" FontSize="18"
+                   FontWeight="Bold" Foreground="#212529" Margin="0,0,0,15" />
+
+        <!-- Steps explanation -->
+        <Border Grid.Row="1" Background="#E8F0FE" CornerRadius="6"
+                Padding="12" Margin="0,0,0,15">
+            <StackPanel>
+                <TextBlock FontSize="12" Foreground="#1A73E8"
+                           FontWeight="SemiBold" Margin="0,0,0,5">
+                    操作步骤
+                </TextBlock>
+                <TextBlock FontSize="11" Foreground="#495057"
+                           TextWrapping="Wrap">
+                    1. 选择导师发回带批注的 .docx 文件
+                    2. 系统自动提取批注并创建 feedback 分支
+                    3. 批注导入 SQLite 数据库，在批注面板可见
+                    4. 在 draft 分支上对照批注修改论文
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,15">
+            <TextBlock Text="反馈文件路径" FontSize="12" Foreground="#495057"
+                       FontWeight="SemiBold" Margin="0,0,0,5" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="FilePathBox" Grid.Column="0" Height="30"
+                         FontSize="12" Padding="8,5" IsReadOnly="True"
+                         Background="White" />
+                <Button Grid.Column="1" Content="浏览..." Width="70"
+                        Style="{StaticResource SmallButton}" Height="30"
+                        Margin="8,0,0,0" Click="OnBrowse" />
+            </Grid>
+        </StackPanel>
+
+        <TextBlock Grid.Row="3" FontSize="11" Foreground="#6C757D"
+                   TextWrapping="Wrap" Margin="0,10,0,0">
+            导入后，系统将：
+            • 把反馈文件原样保存到仓库中
+            • 创建 feedback/{轮次} 分支
+            • 打上 feedback/r{N}-received 标签
+            • 提取所有批注到本地数据库
+            • 自动切回 draft 分支供您修改
+        </TextBlock>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="取消" Width="80" Height="32"
+                    Background="#E9ECEF" Foreground="#495057"
+                    BorderThickness="0" FontSize="13" Cursor="Hand"
+                    Click="OnCancel" Margin="0,0,10,0" />
+            <Button Content="导入" Style="{StaticResource ModernButton}"
+                    Width="80" Click="OnImport" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,114 @@
+<Window x:Class="WordVCS.UI.Controls.CommitDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="提交新版本" Width="500" Height="600"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F8F9FA">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Themes/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0" Text="💾 提交新版本" FontSize="18"
+                   FontWeight="Bold" Foreground="#212529" Margin="0,0,0,15" />
+
+        <!-- Comment count info -->
+        <TextBlock Grid.Row="1" FontSize="12" Foreground="#6C757D"
+                   Margin="0,0,0,5">
+            <Run Text="已勾选 " />
+            <Run Text="{Binding CommentCountText, Mode=OneWay}" Foreground="#198754"
+                 FontWeight="Bold" />
+        </TextBlock>
+
+        <!-- Commit type selector -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,15">
+            <TextBlock Text="提交类型" FontSize="12" Foreground="#495057"
+                       FontWeight="SemiBold" Margin="0,0,0,5" />
+            <ComboBox x:Name="CommitTypeCombo" Height="30"
+                      SelectedIndex="0" FontSize="12">
+                <ComboBoxItem>[修改] 修改已有内容</ComboBoxItem>
+                <ComboBoxItem>[新增] 新增内容</ComboBoxItem>
+                <ComboBoxItem>[删除] 删除已有内容</ComboBoxItem>
+                <ComboBoxItem>[格式] 格式调整</ComboBoxItem>
+                <ComboBoxItem>[回复批注] 回复导师意见</ComboBoxItem>
+                <ComboBoxItem>[送审] 送审版本</ComboBoxItem>
+                <ComboBoxItem>[定稿] 终版确定</ComboBoxItem>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- Commit summary -->
+        <StackPanel Grid.Row="3" Margin="0,0,0,15">
+            <TextBlock Text="提交摘要 (必填)" FontSize="12" Foreground="#495057"
+                       FontWeight="SemiBold" Margin="0,0,0,5" />
+            <TextBox x:Name="SummaryBox" Height="30" FontSize="12"
+                     Padding="8,5" BorderBrush="#CED4DA"
+                     Text="根据第X轮导师意见修改" />
+        </StackPanel>
+
+        <!-- Commit detail -->
+        <StackPanel Grid.Row="4" Margin="0,0,0,15">
+            <TextBlock Text="详细说明 (可选)" FontSize="12" Foreground="#495057"
+                       FontWeight="SemiBold" Margin="0,0,0,5" />
+            <TextBox x:Name="DetailBox" Height="100" FontSize="12"
+                     Padding="8,5" BorderBrush="#CED4DA"
+                     AcceptsReturn="True" TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     Text="变更细节:&#x0a;- &#x0a;- " />
+        </StackPanel>
+
+        <!-- Addressed comments list -->
+        <Border Grid.Row="5" Background="White" CornerRadius="6"
+                BorderBrush="#E9ECEF" BorderThickness="1"
+                Padding="10" Margin="0,0,0,15">
+            <StackPanel>
+                <TextBlock Text="本次解决的批注:" FontSize="11"
+                           Foreground="#6C757D" Margin="0,0,0,5" />
+                <ItemsControl x:Name="AddressedCommentsList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock FontSize="11" Foreground="#198754"
+                                       TextWrapping="Wrap">
+                                <Run Text="☑ " />
+                                <Run Text="{Binding Content}" />
+                            </TextBlock>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- Summary info -->
+        <TextBlock Grid.Row="6" FontSize="11" Foreground="#6C757D"
+                   TextWrapping="Wrap">
+            <Run Text="提交后将在 Git 仓库中创建新版本，并自动将勾选的批注标记为已处理。" />
+        </TextBlock>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="7" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="取消" Width="80" Height="32"
+                    Background="#E9ECEF" Foreground="#495057"
+                    BorderThickness="0" FontSize="13" Cursor="Hand"
+                    Click="OnCancelClick" Margin="0,0,10,0" />
+            <Button Content="提交" Style="{StaticResource ModernButton}"
+                    Width="100" Click="OnSubmitClick" />
+        </StackPanel>
+    </Grid>
+</Window>

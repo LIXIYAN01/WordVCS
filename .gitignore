@@ -1,0 +1,34 @@
+# Build outputs
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+packages/
+*.nupkg
+
+# VSTO
+*.vsto
+*.dll.manifest
+*.application
+
+# Debug/Test
+TestResults/
+*.vs/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs
+*.log
+
+# Temp
+~$*.docx
+~$*.docm
+*.tmp
+*.wbk

@@ -1,0 +1,65 @@
+<UserControl x:Class="WordVCS.UI.Controls.DiffViewer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Diff header -->
+        <Border Grid.Row="0" Padding="15,10,15,6">
+            <StackPanel>
+                <TextBlock Text="版本差异对比" FontSize="12"
+                           Foreground="#495057" FontWeight="Bold" />
+                <TextBlock Text="变更: +新增  -删除  ~修改" FontSize="11"
+                           Foreground="#198754" Margin="0,4,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- Compare options -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="15,0,15,10">
+            <TextBlock Text="对比:" FontSize="11" Foreground="#6C757D"
+                       VerticalAlignment="Center" Margin="0,0,6,0" />
+            <ComboBox SelectedIndex="0" Width="140" Height="24" FontSize="11"
+                      SelectionChanged="OnCompareTargetChanged">
+                <ComboBoxItem>工作区 ↔ 上次提交</ComboBoxItem>
+                <ComboBoxItem>工作区 ↔ 指定版本</ComboBoxItem>
+            </ComboBox>
+            <Button Content="刷新" Style="{StaticResource SmallButton}"
+                    Margin="8,0,0,0" Click="OnRefreshClick" />
+        </StackPanel>
+
+        <!-- Diff blocks -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding DiffBlocks}"
+                          Margin="15,0,15,10">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{Binding BgColor}"
+                                Padding="10,6" CornerRadius="3"
+                                Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding Indicator}"
+                                           Foreground="{Binding TextColor}"
+                                           FontWeight="Bold" FontSize="12"
+                                           VerticalAlignment="Top" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Text}"
+                                           Foreground="{Binding TextColor}"
+                                           FontSize="12" TextWrapping="Wrap" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

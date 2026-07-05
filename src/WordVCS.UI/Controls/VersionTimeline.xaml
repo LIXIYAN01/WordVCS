@@ -1,0 +1,108 @@
+<UserControl x:Class="WordVCS.UI.Controls.VersionTimeline"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:WordVCS.UI.Converters"
+             Background="Transparent">
+    <UserControl.Resources>
+        <converters:RelativeTimeConverter x:Key="RelativeTime" />
+        <converters:CountToVisibilityConverter x:Key="CountToVisibility" />
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Info bar -->
+        <Border Grid.Row="0" Padding="15,10" Background="#F8F9FA">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="当前分支: " FontSize="11" Foreground="#6C757D" />
+                    <TextBlock Text="{Binding CurrentBranch}" FontSize="11"
+                               FontWeight="Bold" Foreground="#495057" />
+                </StackPanel>
+                <TextBlock FontSize="11" Foreground="#6C757D" Margin="0,4,0,0">
+                    <Run Text="共 " /><Run Text="{Binding VersionHistory.Count, Mode=OneWay}" />
+                    <Run Text=" 个版本" />
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- Timeline -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding VersionHistory}"
+                          Margin="15,8,15,0">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Padding="0,8,0,8"
+                                BorderBrush="#E9ECEF"
+                                BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Timeline dot -->
+                                <Ellipse Grid.Column="0" Width="8" Height="8"
+                                         Fill="#0D6EFD" VerticalAlignment="Top"
+                                         Margin="0,5,12,0" />
+
+                                <StackPanel Grid.Column="1">
+                                    <!-- Commit message -->
+                                    <TextBlock Text="{Binding ShortMessage}"
+                                               FontWeight="Bold" FontSize="13"
+                                               Foreground="#212529"
+                                               TextWrapping="Wrap" />
+
+                                    <!-- Author & time -->
+                                    <TextBlock FontSize="11" Foreground="#6C757D"
+                                               Margin="0,4,0,0">
+                                        <Run Text="{Binding Author}" />
+                                        <Run Text=" - " />
+                                        <Run Text="{Binding CommittedAt,
+                                            Converter={StaticResource RelativeTime}}" />
+                                    </TextBlock>
+
+                                    <!-- Addressed comment count -->
+                                    <TextBlock FontSize="10" Foreground="#198754"
+                                               Margin="0,2,0,0"
+                                               Visibility="{Binding AddressedCommentCount,
+                                                   Converter={StaticResource CountToVisibility}}">
+                                        <Run Text="☑ " />
+                                        <Run Text="{Binding AddressedCommentCount}" />
+                                        <Run Text=" 条批注已处理" />
+                                    </TextBlock>
+
+                                    <!-- Tags -->
+                                    <ItemsControl ItemsSource="{Binding Tags}"
+                                                  Margin="0,4,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#F1F3F4"
+                                                        CornerRadius="3"
+                                                        Padding="4,2"
+                                                        Margin="0,0,6,2">
+                                                    <TextBlock Text="{Binding}"
+                                                               FontSize="10"
+                                                               Foreground="#5F6368"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
