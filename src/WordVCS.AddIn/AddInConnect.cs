@@ -9,12 +9,13 @@ using Office = Microsoft.Office.Core;
 namespace WordVCS.AddIn
 {
     /// <summary>
-    /// Word COM Add-in 连接器 — 实现 IDTExtensibility2 + IRibbonExtensibility
-    /// Word 启动时自动加载，在「开始」旁显示「论文版本」标签页
+    /// Word COM Add-in — implements IDTExtensibility2 + IRibbonExtensibility
+    /// Loads automatically when Word starts, shows ribbon tab next to Home
     /// </summary>
     [ComVisible(true)]
     [ProgId("WordVCS.Connect")]
     [Guid("B4E1C2D3-A5F6-7890-ABCD-EF1234567890")]
+    [ClassInterface(ClassInterfaceType.AutoDual)]
     public class AddInConnect : IExtensibility, Office.IRibbonExtensibility
     {
         private Word.Application _wordApp;
